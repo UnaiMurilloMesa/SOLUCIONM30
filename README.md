@@ -1,39 +1,52 @@
-# SOLUCIONM30
-## FASE 1: Definición y Adquisición de Datos (El Terreno)
-Antes de nada, acotamos los datos crudos que alimentarán el sistema.
-· Objetivo: Obtener los datasets brutos de la zona M-30 "Arco Este".
-· Fuente: Portal de Datos Abiertos del Ayuntamiento de Madrid.
-· Periodo: 2018-2019 (Entrenamiento y Test "limpio" pre-pandemia).
-· Tareas:
-  - Mapeo de Sensores: Identificar los IDs de las espiras electromagnéticas entre el Nudo de Manoteras y el Nudo Sur.
-  - Descarga Masiva: Automatizar la descarga de los CSVs mensuales.
-  - Enriquecimiento: Descargar datos meteorológicos (AEMET/OpenWeather) para esas fechas.
-## FASE 2: ETL y Preprocesamiento (La Refinería - KNIME)
-Transformar datos sucios en información útil. Esta será la parte más densa en KNIME.
-· Herramienta: KNIME Analytics Platform.
-· Tareas:
-  - Filtrado Espacial: Descartar todos los sensores que no sean de nuestra lista de la M-30.
-  - Limpieza de Ruido: Eliminar registros con errores de sensor (ej: Velocidad=0 pero Intensidad>0). Imputación de valores perdidos (si falta un dato de 15 min, interpolar con el anterior y posterior).
-  - Feature Engineering (Creación de variables):
-      - Crear columna Día_Semana y Es_Festivo.
-      - Crear columna Lluvia_Binaria (0/1).
-      - Crucial: Crear variables de lag (retardo).
-      - Ejemplo: Densidad_Manoteras_Hace_10min.
-## FASE 3: El Motor Inteligente (Análisis y Cálculo - KNIME/Python)
-Aquí es donde aplicamos la ciencia para calcular la "Velocidad Óptima".
-· Herramienta: KNIME (con integración de Python Script si hace falta).
-· Sub-fase 3.1: El Modelo Físico (Diagrama Fundamental):
-  - Graficar Intensidad vs. Densidad con los datos reales.
-  - Determinar matemáticamente el Punto Crítico de Colapso ($K_{crit}$) para ese tramo (ej: 45 veh/km).
-· Sub-fase 3.2: El Modelo Predictivo (ML):
-  - Entrenar algoritmo (Random Forest o XGBoost) para predecir la densidad futura ($t+15min$).
-· Sub-fase 3.3: El Algoritmo de Optimización:
-  - Aplicar la lógica de negocio: Si Predicción > Umbral Crítico $\rightarrow$ Bajar Límite a 70 km/h. Si Predicción < Umbral Crítico $\rightarrow$ Mantener 90 km/h.
-  - Output de esta fase: Un dataset nuevo con dos columnas clave: Velocidad_Real_Registrada y Velocidad_Optima_Calculada.
-## FASE 4: La Simulación Visual (El Frontend - Python)
-Aquí entra tu "plantilla de frontend". Haremos una Simulación Macroscópica Visual.
-· Herramienta: Python. Usar bibliotecas como Streamlit (muy rápido para dashboards), PyGame (si quieres ver "cochcecitos" moviéndose) o Matplotlib/Plotly animado.
-· Concepto: Pantalla dividida.
-  - Izquierda (Realidad): Muestra el flujo de tráfico tal cual ocurrió en el histórico (atasco, coches rojos parados).
-  - Derecha (Tu Solución): Muestra el mismo flujo pero aplicando tu velocidad calculada. Los coches irán más lento (70 km/h) pero no se pondrán en rojo (parados).
-  - Métricas en tiempo real: Un panel al lado que muestre "Tiempo medio de viaje" actualizándose segundo a segundo en la simulación.
+# Optimización de Flujo Vehicular en la M-30 mediante Velocidad Variable 🚗📉
+
+> *Aplicación de Ciencia de Datos y Gemelos Digitales para la mitigación del "Efecto Acordeón" en el tráfico de Madrid.*
+
+![Python](https://img.shields.io/badge/Python-3.9%2B-blue)
+![Data Science](https://img.shields.io/badge/Focus-Data%20Science-green)
+![Status](https://img.shields.io/badge/Status-In%20Development-orange)
+![License](https://img.shields.io/badge/License-MIT-lightgrey)
+
+## 📖 Descripción del Proyecto
+
+Este proyecto aborda la problemática de los atascos en la autopista de circunvalación **M-30 de Madrid**, específicamente en el **Arco Este (Ventas - O'Donnell)**.
+
+El objetivo principal es desarrollar un sistema de software que, mediante el análisis de datos históricos y algoritmos de **Machine Learning**, calcule una **Velocidad Límite Dinámica (Variable Speed Limit)** óptima. Esta velocidad varía a lo largo del día para armonizar el flujo, maximizar el caudal de vehículos (throughput) y evitar las ondas de choque (efecto acordeón) antes de que se produzcan.
+
+El sistema incluye un **Gemelo Digital (Dashboard)** desarrollado en Python que permite simular y comparar visualmente el escenario real (histórico) frente al escenario optimizado por el algoritmo.
+
+---
+
+## 📂 Estructura del Repositorio actual
+
+El proyecto sigue una arquitectura modular para asegurar la separación de responsabilidades entre la ingeniería de datos, la lógica científica y la interfaz de usuario.
+
+```text
+TFG_Trafico_Madrid/
+│
+├── data/                          # Almacenamiento de datos
+│   ├── raw/                       # Datasets originales (datos.madrid.es)
+│   ├── processed/                 # Datos limpios y estructurados
+│   └── external/                  # Datos meteorológicos y metadatos de sensores
+│
+├── src/                           # Núcleo del procesamiento y lógica
+│   ├── __init__.py
+│   ├── config.py                  # Configuración global (IDs sensores M-30, rutas)
+│   ├── data_loader.py             # Scripts de ingestión y descarga
+│   ├── preprocessor.py            # Limpieza ETL e ingeniería de características
+│   ├── physics.py                 # Diagrama Fundamental del Tráfico (Q = K * V)
+│   ├── optimizer.py               # Algoritmo de decisión de velocidad óptima
+│   └── models.py                  # Modelos ML (Random Forest/XGBoost)
+│
+├── simulation/                    # Módulo de simulación comparativa
+│   ├── __init__.py
+│   ├── engine.py                  # Motor de cálculo de métricas (A vs B)
+│   └── scenarios.py               # Definición de escenarios de prueba
+│
+├── frontend/                      # Interfaz Visual (Gemelo Digital)
+│   ├── app.py                     # Punto de entrada (Streamlit/Dash)
+│   └── components/                # Gráficos y mapas interactivos
+│
+├── notebooks/                     # Jupyter Notebooks para experimentación (Sandbox)
+├── requirements.txt               # Dependencias del proyecto
+└── main.py                        # Script maestro de ejecución
