@@ -112,20 +112,32 @@ st.markdown("""
 st.title("🚇 M-30 Traffic Simulation (Digital Twin)")
 
 @st.cache_data
-def load_all_data(file_name="01-2019.csv"):
+def load_all_data(selected_date):
     # 1. Traffic Data
-    file_path = DATA_PATH_RAW / "trafico" / "01-2019" / file_name
-    # 2. Metadata (Map)
+    month_str = selected_date.strftime("%m")
+    year_str = selected_date.strftime("%Y")
+    folder_name = f"{month_str}-{year_str}"
+    file_name = f"{month_str}-{year_str}.csv"
+    
+    file_path = DATA_PATH_RAW / "trafico" / folder_name / file_name
+    
+    # 2. Metadata (Map) - Static for now
     meta_path = DATA_PATH_RAW / "meta" / "pmed_ubicacion_10_2018.csv"
     
-    with st.spinner(f"Loading data..."):
+    with st.spinner(f"Loading data from {file_name}..."):
         if not file_path.exists():
             return pd.DataFrame(), pd.DataFrame()
         
         df = load_csv_data(file_path)
         meta_df = load_metadata(meta_path)
     
-    preprocessor = DataPreprocessor()
+    # FILTER: Only keep M-30 sensors
+    if 'tipo_elem' in meta_df.columns:
+        meta_df = meta_df[meta_df['tipo_elem'] == 'M30']
+    
+    m30_ids = meta_df['id'].unique()
+    
+    preprocessor = DataPreprocessor(sensor_ids=m30_ids)
     df_clean = preprocessor.clean_data(df)
     df_features = preprocessor.create_features(df_clean)
     
@@ -165,9 +177,8 @@ if 'selected_sensor' not in st.session_state:
 
 st.sidebar.header("🕹️ Simulation Controls")
 selected_date = st.sidebar.date_input("📅 Date to Analyze", value=pd.to_datetime("2019-01-01"))
-demo_file = "01-2019.csv" 
 
-df_raw, df_meta = load_all_data(demo_file)
+df_raw, df_meta = load_all_data(selected_date)
 
 if df_raw.empty:
     st.error("Data not found.")

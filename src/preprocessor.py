@@ -78,10 +78,15 @@ class DataPreprocessor:
         
         # 1. Density (K) = Intensity (limit/hour) / Speed (km/h)
         # Result is vehicles/km.
-        # Handle division by zero: if speed is 0, density is technically infinite (jam).
-        # We replace 0 with a small epsilon.
-        epsilon = 1e-5
-        df['density'] = df['intensidad'] / (df['vmed'] + epsilon)
+        # FIX: Handle cases where speed is close to 0 to avoid exploding density.
+        # We enforce a minimum effective speed for the calculation (e.g. 5 km/h)
+        # and cap the maximum density to realistic values (e.g. 400 veh/km).
+        
+        effective_speed = df['vmed'].clip(lower=5.0)
+        df['density'] = df['intensidad'] / effective_speed
+        
+        # Cap outliers
+        df['density'] = df['density'].clip(upper=400.0)
         
         # 2. Time Features
         if 'fecha' in df.columns:
