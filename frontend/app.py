@@ -169,6 +169,15 @@ if 'simulation_running' not in st.session_state:
     st.session_state.simulation_running = False
 if 'selected_sensor' not in st.session_state:
     st.session_state.selected_sensor = None
+if 'current_frame_idx' not in st.session_state:
+    st.session_state.current_frame_idx = 0
+
+# ... (middle content preserved via broad match or careful editing?) 
+# Actually simpler to just target the specific blocks. Use separate chunks.
+
+# 2. Slider Update
+# 3. Loop Replacement
+
 
 # --- LOAD DATA ---
 # 1. Day Selection (Before loading data to potentially filter file loading in future)
@@ -177,6 +186,12 @@ if 'selected_sensor' not in st.session_state:
 
 st.sidebar.header("🕹️ Simulation Controls")
 selected_date = st.sidebar.date_input("📅 Date to Analyze", value=pd.to_datetime("2019-01-01"))
+
+# Reset if Date changes
+if 'last_date' not in st.session_state or st.session_state.last_date != selected_date:
+    st.session_state.simulation_running = False
+    st.session_state.current_frame_idx = 0
+    st.session_state.last_date = selected_date
 
 df_raw, df_meta = load_all_data(selected_date)
 
@@ -252,6 +267,8 @@ selected_sensor = st.sidebar.selectbox("📍 Sensor Location", options=available
 # Sync Sidebar -> Session State (if changed manually)
 if selected_sensor != st.session_state.selected_sensor:
     st.session_state.selected_sensor = selected_sensor
+    st.session_state.simulation_running = False
+    st.session_state.current_frame_idx = 0
 
 # Process Data for Sensor
 sensor_data = df_raw[df_raw['id'] == selected_sensor].copy()
@@ -289,8 +306,37 @@ daily_data_resampled = daily_data.set_index('fecha').resample('1T').interpolate(
 # --- MAIN INTERFACE ---
 
 # Layout: Clock | Slider
+# Layout: Clock | Controls
 col_clock, col_controls = st.columns([1, 2])
-current_frame = st.slider("⏱️ Time Scrubber", 0, len(daily_data_resampled)-1, 0, format="")
+
+# Logic for Hour Jumping
+current_idx = st.session_state.current_frame_idx
+# Assuming 1T resampling, 1 index = 1 minute. 60 indices = 1 hour.
+current_hour = current_idx // 60
+current_minute = current_idx % 60
+
+# Buttons layout
+c1, c2, c3 = col_controls.columns([1, 2, 1])
+
+if c1.button("⏪ -1 Hr", use_container_width=True):
+    # Logic: 
+    # If minute > 5 -> Go to start of Current Hour (XX:00)
+    # If minute <= 5 -> Go to start of Previous Hour ((XX-1):00)
+    if current_minute > 5:
+        new_idx = current_hour * 60
+    else:
+        new_idx = (current_hour - 1) * 60
+    
+    st.session_state.current_frame_idx = max(0, int(new_idx))
+    st.rerun()
+
+if c3.button("⏩ +1 Hr", use_container_width=True):
+    # Logic: Go to start of Next Hour
+    new_idx = (current_hour + 1) * 60
+    st.session_state.current_frame_idx = min(len(daily_data_resampled) - 1, int(new_idx))
+    st.rerun()
+
+current_frame = st.session_state.current_frame_idx
 
 with col_clock:
     clock_ph = st.empty()
@@ -306,14 +352,15 @@ clock_ph.markdown(f"""
 </div>
 """, unsafe_allow_html=True)
 
-with col_controls:
-    start_btn = st.button("▶️ START / RESUME", use_container_width=True)
-    stop_btn = st.button("⏸️ PAUSE", use_container_width=True)
-
-if start_btn:
-    st.session_state.simulation_running = True
-if stop_btn:
-    st.session_state.simulation_running = False
+with c2:
+    if st.session_state.simulation_running:
+        if st.button("⏸️ PAUSE", use_container_width=True):
+            st.session_state.simulation_running = False
+            st.rerun()
+    else:
+        if st.button("▶️ START", use_container_width=True):
+            st.session_state.simulation_running = True
+            st.rerun()
 
 # --- LAYOUT VISUALS ---
 col1, col2 = st.columns(2)
@@ -385,15 +432,30 @@ def render_frame(data_row):
 render_frame(row)
 
 # --- ANIMATION LOGIC ---
+# --- ANIMATION LOGIC ---
 if st.session_state.simulation_running:
-    # We run a loop from current_frame to end
-    start_idx = current_frame
+    # Use a placeholder for the Stop button to allow breaking? date updates?
+    # Actually, in Streamlit, clicking a button interrupts the script.
+    # So we just run the loop. If user clicks PAUSE, script restarts, running is checked...
+    # We need to ensure we don't reset index on restart unless intended.
+    
+    start_idx = st.session_state.current_frame_idx
+    
+    # Create a container for the loop to reuse
+    # We already have placeholders: clock_ph, real_road_ph, opt_road_ph...
     
     for i in range(start_idx, len(daily_data_resampled)):
-        loop_row = daily_data_resampled.iloc[i]
+        # Check if we assume it's still running? 
+        # We can't detect button press inside loop easily without special components.
+        # But clicking "Pause" defines a new run.
+        
+        # Update Session State Index (so we resume from here)
+        st.session_state.current_frame_idx = i
+        
+        row = daily_data_resampled.iloc[i]
         
         # Update Clock
-        curr_time_str = loop_row['fecha'].strftime("%H:%M")
+        curr_time_str = row['fecha'].strftime("%H:%M")
         clock_ph.markdown(f"""
         <div class="digital-clock">
             <div style="font-size: 1.2em; color: #888;">{target_date}</div>
@@ -401,16 +463,16 @@ if st.session_state.simulation_running:
         </div>
         """, unsafe_allow_html=True)
         
-        # RENDER VISUALS
-        render_frame(loop_row)
+        # Render Visuals
+        render_frame(row)
         
-        # Sleep based on Speed Factor
-        # Base: 2 mins (120s) for 1440 frames -> 0.08s per frame.
-        # Speed Factor 1 = 0.08s. Speed 10 = 0.008s.
+        # Sleep
         base_sleep = 0.08
         actual_sleep = base_sleep / speed_factor
         time.sleep(actual_sleep)
-        
+    
+    # If loop finishes normally
     st.session_state.simulation_running = False
+    st.session_state.current_frame_idx = 0
     st.rerun()
 

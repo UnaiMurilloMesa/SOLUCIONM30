@@ -70,7 +70,7 @@ def main():
     print(f"Densidad  : {top_val:.2f} veh/km")
     print("="*50)
     
-    print("\nTop 5 Sensores:")
+    print("\nTop 5 Sensores de estudio:")
     for i in range(min(5, len(ranking))):
         pid = ranking.index[i]
         val = ranking.iloc[i]
