@@ -1,0 +1,23 @@
+# --- PYTHON ---
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# --- DATOS ---
+data/raw/*
+data/processed/*
+data/external/*
+
+# Excepción: ¡No ignorar el archivo .gitkeep!
+# Esto sirve para que Git suba las carpetas vacías para que otros vean la estructura
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+!data/external/.gitkeep
+
+# --- IDEs ---
+.vscode/
+.idea/
+.DS_Store
+*.ipynb_checkpoints
