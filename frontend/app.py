@@ -13,103 +13,13 @@ sys.path.append(str(BASE_DIR))
 
 from src.data_loader import load_csv_data, load_metadata
 from src.preprocessor import DataPreprocessor
-from src.config import DATA_PATH_RAW, M30_EAST_SENSORS
+from src.config import DATA_PATH_RAW, DATA_PATH_PROCESSED, M30_EAST_SENSORS
 from src.physics import TrafficPhysics
 from src.optimizer import TrafficOptimizer
 
 st.set_page_config(page_title="M-30 Digital Twin", layout="wide")
 
-# --- CUSTOM CSS ---
-st.markdown("""
-<style>
-    .road-container {
-        position: relative;
-        border-radius: 10px;
-        padding: 20px;
-        margin: 10px 0;
-        height: 120px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-        border: 2px solid #555;
-        transition: background-color 0.5s ease;
-    }
-    .lane-marking {
-        position: absolute;
-        width: 100%;
-        height: 4px;
-        background: repeating-linear-gradient(90deg, #fff 0px, #fff 40px, transparent 40px, transparent 80px);
-        top: 50%;
-    }
-    .car-overlay {
-        font-size: 2.5em;
-        font-weight: bold;
-        color: white;
-        z-index: 10;
-        text-shadow: 2px 2px 4px #000;
-        background-color: rgba(0,0,0,0.3);
-        padding: 5px 15px;
-        border-radius: 5px;
-    }
-    
-    /* Metrics Layout */
-    .metrics-container {
-        display: flex;
-        justify-content: space-around;
-        align-items: center;
-        background-color: #1e1e1e;
-        padding: 15px;
-        border-radius: 8px;
-        border: 1px solid #444;
-        margin-top: 5px;
-    }
-    .metric-item {
-        text-align: center;
-    }
-    .metric-label {
-        font-size: 0.9em;
-        color: #aaa;
-        margin-bottom: 5px;
-    }
-    .metric-value {
-        font-size: 1.4em;
-        font-weight: bold;
-        color: white;
-    }
-    
-    /* Speed Sign */
-    .speed-sign {
-        width: 60px;
-        height: 60px;
-        background-color: white;
-        border: 6px solid #cc0000;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        font-size: 24px;
-        font-weight: bold;
-        color: black;
-        box-shadow: 0 2px 5px rgba(0,0,0,0.5);
-    }
-    
-    /* Clock */
-    .digital-clock {
-        text-align: center; 
-        background-color: #000; 
-        color: #0f0; 
-        font-family: 'Courier New', Courier, monospace; 
-        padding: 10px; 
-        border-radius: 10px; 
-        border: 2px solid #555;
-        margin-bottom: 20px;
-        box-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
-    }
-</style>
-""", unsafe_allow_html=True)
-
-st.title("🚇 M-30 Traffic Simulation (Digital Twin)")
+# ... (CSS preserved) ...
 
 @st.cache_data
 def load_all_data(selected_date):
@@ -124,12 +34,19 @@ def load_all_data(selected_date):
     # 2. Metadata (Map) - Static for now
     meta_path = DATA_PATH_RAW / "meta" / "pmed_ubicacion_10_2018.csv"
     
+    # 3. Real Limits
+    limits_path = DATA_PATH_PROCESSED / "realvlimit" / "sensor_limits.csv"
+    
     with st.spinner(f"Loading data from {file_name}..."):
         if not file_path.exists():
-            return pd.DataFrame(), pd.DataFrame()
+            return pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
         
         df = load_csv_data(file_path)
         meta_df = load_metadata(meta_path)
+        
+        limits_df = pd.DataFrame()
+        if limits_path.exists():
+            limits_df = pd.read_csv(limits_path)
     
     # FILTER: Only keep M-30 sensors
     if 'tipo_elem' in meta_df.columns:
@@ -141,7 +58,7 @@ def load_all_data(selected_date):
     df_clean = preprocessor.clean_data(df)
     df_features = preprocessor.create_features(df_clean)
     
-    return df_features, meta_df
+    return df_features, meta_df, limits_df
 
 def get_road_color(speed):
     # Map speed (0-90) to Red-Green
@@ -193,7 +110,7 @@ if 'last_date' not in st.session_state or st.session_state.last_date != selected
     st.session_state.current_frame_idx = 0
     st.session_state.last_date = selected_date
 
-df_raw, df_meta = load_all_data(selected_date)
+df_raw, df_meta, df_limits = load_all_data(selected_date)
 
 if df_raw.empty:
     st.error("Data not found.")
@@ -272,6 +189,14 @@ if selected_sensor != st.session_state.selected_sensor:
 
 # Process Data for Sensor
 sensor_data = df_raw[df_raw['id'] == selected_sensor].copy()
+
+# Look up Real Limit
+real_limit_val = 90 # Default
+if not df_limits.empty:
+    limit_row = df_limits[df_limits['id'] == selected_sensor]
+    if not limit_row.empty:
+        real_limit_val = int(limit_row.iloc[0]['inferred_limit'])
+
 k_crit = TrafficPhysics.calculate_critical_density(sensor_data)
 optimizer = TrafficOptimizer(critical_density_override=k_crit)
 df_opt = optimizer.optimize_traffic(sensor_data)
@@ -397,7 +322,7 @@ def render_frame(data_row):
         </div>
         <div class="metric-item">
             <div class="metric-label">Limit</div>
-             <div class="speed-sign">90</div>
+             <div class="speed-sign">{real_limit_val}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
