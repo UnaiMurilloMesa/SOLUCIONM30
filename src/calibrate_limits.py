@@ -116,6 +116,9 @@ def main():
     # Sort by ID
     results_df = results_df.sort_values('id')
     
+    # Ensure directory exists
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     results_df.to_csv(output_file, index=False)
     print(f"✅ Resultados guardados en: {output_file}")
     print("\nEjemplo de resultados:")
