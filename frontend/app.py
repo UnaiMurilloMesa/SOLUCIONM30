@@ -318,7 +318,24 @@ else:
 daily_data = df_opt[df_opt['fecha'].dt.date == target_date].sort_values('fecha').reset_index(drop=True)
 
 # Resample for smooth animation (1 minute intervals)
-daily_data_resampled = daily_data.set_index('fecha').resample('1T').interpolate(method='linear').reset_index()
+# Resample for smooth animation (1 minute intervals)
+# We need to handle discrete variables (limits) differently from continuous (speed, density)
+df_indexed = daily_data.set_index('fecha')
+
+# 1. Continuous Variables: Linear Interpolation
+continuous_cols = ['intensidad', 'ocupacion', 'carga', 'vmed', 'density', 'intensidad_opt', 'velocidad_opt', 'simulated_speed', 'simulated_density']
+# Ensure they exist
+continuous_cols = [c for c in continuous_cols if c in df_indexed.columns]
+df_continuous = df_indexed[continuous_cols].resample('1T').interpolate(method='linear')
+
+# 2. Discrete Variables: Forward Fill (Step function)
+# Limits should jump, not fade.
+discrete_cols = ['limite_dinamico', 'optimal_speed_limit']
+discrete_cols = [c for c in discrete_cols if c in df_indexed.columns]
+df_discrete = df_indexed[discrete_cols].resample('1T').ffill()
+
+# Combine
+daily_data_resampled = pd.concat([df_continuous, df_discrete], axis=1).reset_index()
 
 # --- MAIN INTERFACE ---
 
@@ -425,6 +442,10 @@ def render_frame(data_row):
     o_limit = int(data_row['optimal_speed_limit'])
     o_color = get_road_color(o_speed)
     
+    # Highlight if limit is lower than base (VSL Active)
+    is_active = o_limit < real_limit_val
+    sign_style = "border-color: #ffcc00; box-shadow: 0 0 15px #ffcc00;" if is_active else "border-color: #cc0000;"
+    
     opt_road_ph.markdown(f"""
     <div class="road-container" style="background-color: {o_color};">
         <div class="lane-marking"></div>
@@ -440,7 +461,7 @@ def render_frame(data_row):
         </div>
         <div class="metric-item">
             <div class="metric-label">Limit</div>
-             <div class="speed-sign" style="border-color: {'#cc0000' if o_limit==90 else '#ffcc00'};">{o_limit}</div>
+             <div class="speed-sign" style="{sign_style}">{o_limit}</div>
         </div>
     </div>
     """, unsafe_allow_html=True)

@@ -82,8 +82,41 @@ class DataPreprocessor:
         # We enforce a minimum effective speed for the calculation (e.g. 5 km/h)
         # and cap the maximum density to realistic values (e.g. 400 veh/km).
         
+        # 1. Density (K) Calculation
+        # Standard: K = Q / V
+        # Edge Case: Stopped traffic (V->0, Q->0) => K should be High, but formula gives 0/0 or 0.
+        
+        # Method A: Q / V (clipped)
         effective_speed = df['vmed'].clip(lower=5.0)
-        df['density'] = df['intensidad'] / effective_speed
+        df['density_qv'] = df['intensidad'] / effective_speed
+
+        # Method B: Occupancy-based (if available)
+        # K ~ alpha * Occupancy. 
+        # Tuning: Max Density (Jam) ~ 400 veh/km corresponds to Occupancy ~ 100%.
+        # So factor approx 4. Let's use 3.5 as a conservative estimate for mixed traffic.
+        if 'ocupacion' in df.columns:
+            df['density_occ'] = df['ocupacion'] * 3.5
+        else:
+            df['density_occ'] = df['density_qv'] # Fallback
+
+        # Hybrid Approach:
+        # If Speed is "normal" (> 10 km/h), trust Q/V provided Q > 0.
+        # If Speed is "low" (<= 10 km/h) OR Q is 0, trust Occupancy.
+        
+        def calculate_hybrid_density(row):
+            v = row['vmed']
+            q = row['intensidad']
+            
+            # If valid flow and speed, Q/V is most accurate physical measure
+            if v > 10 and q > 0:
+                return row['density_qv']
+            else:
+                # Low speed or zero flow -> Use Occupancy Proxy
+                # If occupancy is missing (NaN/0), fallback to Q/V (which implies 0 density)
+                # But if V is low and Occ is high, this saves us from "Ghost Empty Roads"
+                return row.get('density_occ', row['density_qv'])
+
+        df['density'] = df.apply(calculate_hybrid_density, axis=1)
         
         # Cap outliers
         df['density'] = df['density'].clip(upper=400.0)
