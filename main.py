@@ -20,7 +20,7 @@ def main():
     """
     Main execution function. runs the pipeline on a sample.
     """
-    print("🚦 Starting Traffic Flow Optimization System (TFG M-30)...")
+    print("🚦 Starting Traffic Flow Optimization System (M-30)...")
     
     # 1. Load Sample
     sample_file = DATA_PATH_RAW / "trafico" / "01-2019" / "01-2019.csv"
