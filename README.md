@@ -7,15 +7,16 @@ Este documento te guiará paso a paso para configurar y ejecutar el sistema de o
 ## 📋 1. Requisitos Previos
 
 Necesitas tener instalado en tu ordenador:
-*   **Python 3.10 o superior**: [Descargar aquí](https://www.python.org/downloads/).
-*   **Git** (Opcional, si vas a clonar el repositorio).
+
+- **Python 3.10 o superior**: [Descargar aquí](https://www.python.org/downloads/).
+- **Git** (Opcional, si vas a clonar el repositorio).
 
 ---
 
 ## 🛠️ 2. Instalación
 
 1.  **Descarga o Clona** este repositorio en tu ordenador.
-3.  **Instala las dependencias** (librerías necesarias) ejecutando:
+2.  **Instala las dependencias** (librerías necesarias) ejecutando:
 
 ```powershell
 pip install -r requirements.txt
@@ -25,19 +26,33 @@ pip install -r requirements.txt
 
 ## 📂 3. Preparación de los Datos
 
-### Colocar los archivos
+Para que el programa funcione, necesitas colocar los datos históricos en las carpetas correctas. El sistema es muy estricto con esto.
+
+### A. Crear la estructura de carpetas
+
+Ejecuta estos comandos en tu terminal para crear las carpetas necesarias:
+
+```powershell
+mkdir data\raw\trafico\01-2019
+mkdir data\raw\meta
+```
+
+### B. Colocar los archivos
+
 Debes copiar tus archivos CSV (que obtienes del portal de datos de Madrid) manualmente en estas carpetas:
 
 1.  **Datos de Tráfico (Mes Enero 2019):**
-    *   Coge tu archivo CSV de tráfico.
-    *   Renómbralo a **`01-2019.csv`**.
-    *   Crea la carpeta `01-2019 en data\raw\trafico`
-    *   Mételo en: `data\raw\trafico\01-2019\`
+
+    - Busca **"Tráfico Histórico"** y selecciona **"Tráfico. Histórico de datos del tráfico desde 2013"**.
+    - Descarga el archivo CSV de tráfico.
+    - Renómbralo a **`01-2019.csv`**.
+    - Colócalo en: `data\raw\trafico\01-2019\`
 
 2.  **Metadatos (Ubicación de Sensores):**
-    *   Coge tu archivo de puntos de medida.
-    *   Renómbralo a **`pmed_ubicacion_10_2018.csv`**.
-    *   Mételo en: `data\raw\meta\`
+    - Busca **"Ubicación puntos de medida"** y selecciona **"Tráfico. Ubicación de los puntos de medida del tráfico"**.
+    - Descarga el archivo CSV de puntos de medida de Octubre de 2018.
+    - Renómbralo a **`pmed_ubicacion_10_2018.csv`**.
+    - Colócalo en: `data\raw\meta\`
 
 > **Nota:** Si quieres visualizar otros meses, deberás crear su carpeta correspondiente (ej. `02-2019`) y colocar su archivo csv dentro.
 
@@ -53,7 +68,7 @@ Ejecuta el script de calibración:
 python -m src.calibrate_limits
 ```
 
-**Deberías ver:** Un mensaje de "✅ Resultados guardados en: .../sensor_limits.csv". 
+**Deberías ver:** Un mensaje de "✅ Resultados guardados en: .../sensor_limits.csv".
 Este paso solo es necesario hacerlo **una vez** (o cuando añadas nuevos datos).
 
 ---
@@ -82,31 +97,32 @@ Ejecuta:
 python -m streamlit run frontend/app.py
 ```
 
-*   Se abrirá automáticamente una pestaña en tu navegador (normalmente en `http://localhost:8501`).
-*   **Si no se abre**, copia esa dirección y pégala en Chrome/Edge/Firefox.
+- Se abrirá automáticamente una pestaña en tu navegador (normalmente en `http://localhost:8501`).
+- **Si no se abre**, copia esa dirección y pégala en Chrome/Edge/Firefox.
 
 ---
 
 ## 🕹️ Guía de Uso del Dashboard
 
 Una vez en la web:
+
 1.  **Selecciona una Fecha:** Usa el menú lateral para elegir el día que quieres analizar.
 2.  **Elige un Sensor:** Haz clic en un punto del mapa o selecciona uno del desplegable en la barra lateral.
-    *   *Rojo:* Sensor seleccionado.
-    *   *Azul:* Otros sensores disponibles en la M-30.
+    - _Rojo:_ Sensor seleccionado.
+    - _Azul:_ Otros sensores disponibles en la M-30.
 3.  **Dale al Play:** Pulsa el botón `▶️ START` en el centro de la pantalla.
 4.  **Observa:**
-    *   **Izquierda (Reality):** Muestra qué pasó realmente ese día.
-    *   **Derecha (Digital Twin):** Muestra qué habría pasado si el sistema de límites dinámicos hubiera estado activo.
-    *   **Velocidad/Densidad:** Compara cómo mejoran los indicadores.
+    - **Izquierda (Reality):** Muestra qué pasó realmente ese día.
+    - **Derecha (Digital Twin):** Muestra qué habría pasado si el sistema de límites dinámicos hubiera estado activo.
+    - **Velocidad/Densidad:** Compara cómo mejoran los indicadores.
 
 ---
 
 ## ❓ Solución de Problemas Frecuentes
 
-*   **Error `FileNotFoundError` o "Sample file not found":**
-    *   Casi seguro que los archivos en `data/raw` no están bien colocados o nombrados. Revisa el **Paso 3**.
-*   **El mapa sale vacío:**
-    *   Falta el archivo de metadatos en `data/raw/meta` o no tiene el formato correcto (separador `;`).
-*   **Error `ModuleNotFoundError`:**
-    *   No has instalado las dependencias. Repite el comando `pip install -r requirements.txt`.
+- **Error `FileNotFoundError` o "Sample file not found":**
+  - Casi seguro que los archivos en `data/raw` no están bien colocados o nombrados. Revisa el **Paso 3**.
+- **El mapa sale vacío:**
+  - Falta el archivo de metadatos en `data/raw/meta` o no tiene el formato correcto (separador `;`).
+- **Error `ModuleNotFoundError`:**
+  - No has instalado las dependencias. Repite el comando `pip install -r requirements.txt`.
